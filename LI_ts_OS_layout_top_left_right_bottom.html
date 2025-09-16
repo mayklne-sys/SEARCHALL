@@ -1,0 +1,473 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>LIץOS — Поиск сверху • Свойства слева • Сайты сбоку • Ссылки снизу</title>
+  <meta name="description" content="LIץOS: единая строка поиска сверху, доп. свойства слева, список систем сбоку, предпросмотр/экспорт ссылок снизу. Работает локально." />
+  <style>
+    :root{
+      --bg:#070b10; --panel:#0d131c; --panel-2:#0e151f; --ring:#213149; --ring-2:#2a3a54;
+      --text:#eaf1ff; --muted:#9db0cc; --accent:#8ab4ff; --accent-2:#7ee787; --warning:#ff9575;
+    }
+    *{box-sizing:border-box} html,body{height:100%}
+    body{
+      margin:0;
+      background:
+        radial-gradient(1400px 700px at 10% -10%, rgba(138,180,255,.08), transparent 60%),
+        radial-gradient(900px 600px at 90% 10%, rgba(126,231,135,.08), transparent 60%),
+        var(--bg);
+      color:var(--text);
+      font:500 16px/1.55 system-ui, -apple-system, Segoe UI, Roboto, Ubuntu, Cantarell, Noto Sans, Arial;
+    }
+    header{position:sticky; top:0; z-index:6; backdrop-filter: blur(8px);
+      background: linear-gradient(180deg, rgba(10,14,20,.92), rgba(10,14,20,.65));
+      border-bottom: 1px solid var(--ring);
+    }
+    .wrap{max-width:1200px;margin:0 auto;padding:14px 20px}
+    .brand{display:flex; align-items:center; justify-content:space-between; gap:14px}
+    .logo{display:flex; align-items:center; gap:12px; font-weight:900; letter-spacing:.4px; font-size:20px}
+    .logo-badge{width:34px; height:34px; border-radius:10px; display:grid; place-items:center;
+      background: linear-gradient(135deg, #1b2840, #153024);
+      border:1px solid var(--ring-2); box-shadow: 0 8px 24px rgba(0,0,0,.25) inset;
+      font: 900 13px ui-monospace, Menlo, Monaco, Consolas, "Liberation Mono", monospace; letter-spacing:.5px}
+    .searchbar{display:grid; grid-template-columns: 1fr auto; gap:10px; margin-top:10px}
+    input[type="text"], select{
+      background:#0a0f16; color:var(--text); border:1px solid #233045; border-radius:12px;
+      padding:12px 14px; outline:none; min-width:0; box-shadow:0 0 0 2px transparent inset; transition:.2s ease;
+    }
+    input[type="text"]:focus, select:focus{ border-color:#39527a; box-shadow:0 0 0 2px rgba(138,180,255,.25) inset }
+    button{
+      background:linear-gradient(180deg,#1d2838,#131c29); color:var(--text);
+      border:1px solid #2c3b52; border-radius:12px; padding:12px 16px; font-weight:800; cursor:pointer; transition:.18s ease; letter-spacing:.2px
+    }
+    button:hover{ transform: translateY(-1px) }
+    .chip{display:inline-flex; align-items:center; gap:8px; padding:8px 10px; background:#0f1723; border:1px solid #203047; border-radius:999px; font-size:13px}
+    .small{font-size:12px} .muted{color:var(--muted)}
+    .divider{height:1px; background:var(--ring); margin:10px 0}
+
+    /* Main layout: props LEFT + sites RIGHT */
+    .main{display:grid; grid-template-columns: 300px 1fr; gap:18px}
+    @media (max-width:980px){ .main{grid-template-columns:1fr} }
+
+    .card{background:linear-gradient(180deg, rgba(14,20,30,.86), rgba(14,20,30,.95)); border:1px solid var(--ring); border-radius:16px; padding:14px}
+    .card h2{margin:0 0 10px; text-transform:uppercase; letter-spacing:.8px; font-size:14px; color:var(--accent)}
+
+    /* LEFT: props */
+    .props .row{display:flex; gap:10px; flex-wrap:wrap; align-items:center}
+    .props .block{margin-bottom:10px}
+    .props .note{margin-top:6px}
+
+    /* RIGHT: sites list */
+    .list-head{display:flex; align-items:center; gap:12px; justify-content:space-between; margin-bottom:8px; flex-wrap:wrap}
+    .search-in-list{flex:1 1 auto; min-width:200px}
+    .groups{display:grid; gap:10px; max-height:460px; overflow:auto; padding-right:4px}
+    details.group{border:1px solid #22334a; border-radius:12px; padding:8px 10px; background:#0d1622}
+    details.group[open]{background:#0e1726}
+    summary{cursor:pointer; user-select:none; font-weight:800}
+    .sys-row{display:grid; grid-template-columns: 22px 1fr auto; align-items:center; gap:8px; padding:6px 6px; border-radius:10px}
+    .sys-row:hover{background:#0b1421}
+    .sys-note{font-size:11px; color:var(--muted)}
+    .open-one{font-size:12px; padding:6px 8px}
+
+    /* BOTTOM: export */
+    .export{margin-top:18px}
+    .export .toolbar{display:flex; gap:8px; flex-wrap:wrap; align-items:center; margin:8px 0}
+    .export textarea{width:100%; min-height:180px; background:#0a0f16; color:var(--text); border:1px solid #233045; border-radius:12px; padding:10px 12px; font-family:ui-monospace,Menlo,Consolas,monospace; font-size:13px}
+
+    .warning{border:1px solid #4c2c2c; background: #1a0f12; color:#ffd6cc; border-radius:12px; padding:10px; font-size:13px}
+    footer{border-top:1px solid var(--ring); margin-top:14px}
+  </style>
+</head>
+<body>
+  <header>
+    <div class="wrap">
+      <div class="brand">
+        <div class="logo"><div class="logo-badge">Lץ</div> LIץOS</div>
+        <div class="small muted">Поиск сверху • Свойства слева • Сайты сбоку • Ссылки снизу</div>
+      </div>
+      <div class="searchbar">
+        <input id="q" type="text" placeholder="Введите запрос (поддерживает: site:, filetype:, &quot;точная фраза&quot;, -исключить)" autocomplete="on" autofocus />
+        <div class="row" style="display:flex; gap:8px; align-items:center">
+          <button id="go">Открыть вкладки ⏎</button>
+          <button id="previewBtn">Предпросмотр ссылок</button>
+        </div>
+      </div>
+      <div class="small muted" style="margin-top:6px">Горячие клавиши: ⏎ — открыть выбранные; Shift+⏎ — только clearnet; Ctrl/Cmd+⏎ — только .onion.</div>
+    </div>
+  </header>
+
+  <main>
+    <div class="wrap main">
+      <!-- LEFT: properties -->
+      <aside class="card props" aria-label="Доп. свойства">
+        <h2>Доп. свойства (слева)</h2>
+
+        <div class="block">
+          <div class="row">
+            <input id="site" type="text" placeholder="site: пример.com" style="flex:1 1 220px" />
+            <select id="filetype" title="filetype">
+              <option value="">filetype: — любой</option>
+              <option>pdf</option><option>doc</option><option>docx</option>
+              <option>ppt</option><option>pptx</option>
+              <option>xls</option><option>xlsx</option>
+              <option>csv</option><option>txt</option><option>zip</option>
+            </select>
+          </div>
+          <div class="row" style="margin-top:8px">
+            <input id="exclude" type="text" placeholder="-исключить слова (через пробел)" style="flex:1 1 220px" />
+          </div>
+          <div class="row" style="margin-top:8px">
+            <label class="chip"><input id="exact" type="checkbox" /> точная фраза</label>
+            <label class="chip"><input id="firstHere" type="checkbox" /> первый в этой вкладке</label>
+          </div>
+          <div class="row" style="margin-top:6px">
+            <label class="chip"><input id="clearnetOnly" type="checkbox" /> только clearnet</label>
+            <label class="chip"><input id="onionOnly" type="checkbox" /> только .onion</label>
+          </div>
+          <div class="note small muted">Если блокируются всплывающие окна — включите «первый в этой вкладке».</div>
+        </div>
+
+        <div class="divider"></div>
+
+        <div class="block">
+          <h3 class="small muted" style="margin:0 0 6px">SearXNG инстанс</h3>
+          <div class="row">
+            <input id="searxBase" type="text" placeholder="https://searx.example.com" style="flex:1 1 220px" />
+            <button id="searxSave">Сохранить</button>
+          </div>
+          <div class="note small muted">Пусто = по умолчанию <code>https://searx.be</code></div>
+        </div>
+
+        <div class="warning">
+          🧅 Для .onion используйте <a href="https://www.torproject.org/download/" target="_blank" rel="noopener">Tor Browser</a>. Мы не помогаем в противоправной деятельности; используйте в рамках закона вашей страны.
+        </div>
+      </aside>
+
+      <!-- RIGHT: sites list -->
+      <section class="card" aria-label="Сайты (справа)">
+        <h2>Сайты (справа)</h2>
+        <div class="list-head">
+          <label class="chip"><input type="checkbox" id="masterCheck" /> выбрать всё</label>
+          <input id="filter" class="search-in-list" type="text" placeholder="Фильтр по названию (images, news, code, wiki, reddit…)" />
+          <div class="row">
+            <button id="btnAll">Все</button>
+            <button id="btnClearnet">Clearnet</button>
+            <button id="btnOnion">.onion</button>
+            <button id="btnSave">Сохранить</button>
+            <button id="btnLoad">Загрузить</button>
+          </div>
+        </div>
+        <div class="groups" id="groups"></div>
+      </section>
+    </div>
+
+    <!-- BOTTOM: export links -->
+    <div class="wrap export" id="links">
+      <section class="card">
+        <h2>Ссылки (снизу) — предпросмотр и экспорт</h2>
+        <div class="toolbar">
+          <button id="btnPreview">Сгенерировать список</button>
+          <button id="btnCopy">Скопировать всё</button>
+          <button id="btnDownloadTxt">Скачать .txt</button>
+          <button id="btnDownloadCsv">Скачать .csv</button>
+          <span id="status" class="small muted"></span>
+        </div>
+        <textarea id="preview" placeholder="Нажмите «Сгенерировать список», чтобы увидеть ссылки..." spellcheck="false"></textarea>
+      </section>
+    </div>
+
+    <footer class="wrap small muted">
+      © 2025 LIץOS • Макет: поиск сверху • свойства слева • сайты сбоку • ссылки снизу
+    </footer>
+  </main>
+
+  <script>
+    // ---- Registry with many systems (id, name, url, onion?)
+    const REGISTRY = [
+      { group:'Web / Global', items:[
+        ['google','Google','https://www.google.com/search?q={q}'],
+        ['ddg','DuckDuckGo','https://duckduckgo.com/?q={q}'],
+        ['brave','Brave','https://search.brave.com/search?q={q}'],
+        ['bing','Bing','https://www.bing.com/search?q={q}'],
+        ['startpage','Startpage','https://www.startpage.com/sp/search?query={q}'],
+        ['yahoo','Yahoo','https://search.yahoo.com/search?p={q}'],
+        ['yandex','Yandex','https://yandex.com/search/?text={q}'],
+        ['qwant','Qwant','https://www.qwant.com/?q={q}'],
+        ['mojeek','Mojeek','https://www.mojeek.com/search?q={q}'],
+        ['ecosia','Ecosia','https://www.ecosia.org/search?q={q}'],
+        ['metager','MetaGer (web)','https://metager.org/meta/meta.ger3?eingabe={q}'],
+        ['searxng','SearXNG (инстанс)','{SEARX}/search?q={q}']
+      ]},
+      { group:'News & Social', items:[
+        ['gnews','Google News','https://news.google.com/search?q={q}'],
+        ['bingnews','Bing News','https://www.bing.com/news/search?q={q}'],
+        ['metager_news','MetaGer News','https://metager.org/meta/meta.ger3?eingabe={q}&focus=news'],
+        ['reddit','Reddit','https://www.reddit.com/search/?q={q}'],
+        ['hn','Hacker News (Algolia)','https://hn.algolia.com/?q={q}'],
+        ['mastodon','Mastodon (search)','https://mastodon.social/search?q={q}'],
+        ['mastodon_tags','Mastodon (hashtags)','https://mastodon.social/tags/{qRAW}']
+      ]},
+      { group:'Images & Video', items:[
+        ['gimages','Google Images','https://www.google.com/search?tbm=isch&q={q}'],
+        ['bimages','Bing Images','https://www.bing.com/images/search?q={q}'],
+        ['brave_images','Brave Images','https://search.brave.com/images?q={q}'],
+        ['yimages','Yandex Images','https://yandex.com/images/search?text={q}'],
+        ['metager_images','MetaGer Images','https://metager.org/meta/meta.ger3?eingabe={q}&focus=images'],
+        ['yt','YouTube','https://www.youtube.com/results?search_query={q}'],
+        ['vimeo','Vimeo','https://vimeo.com/search?q={q}'],
+        ['dailymotion','Dailymotion','https://www.dailymotion.com/search/{q}'],
+        ['peertube','PeerTube (SepiaSearch)','https://sepiasearch.org/search?q={q}']
+      ]},
+      { group:'Knowledge / Dev', items:[
+        ['scholar','Google Scholar','https://scholar.google.com/scholar?q={q}'],
+        ['scholar_ru','Scholar (RU)','https://scholar.google.ru/scholar?q={q}'],
+        ['books','Google Books','https://books.google.com/books?q={q}'],
+        ['wiki','Wikipedia (RU)','https://ru.wikipedia.org/wiki?search={q}'],
+        ['so','Stack Overflow','https://stackoverflow.com/search?q={q}'],
+        ['gh','GitHub','https://github.com/search?q={q}'],
+        ['arxiv','arXiv','https://arxiv.org/search/?query={q}&searchtype=all'],
+        ['semanticscholar','Semantic Scholar','https://www.semanticscholar.org/search?q={q}'],
+        ['npm','npm','https://www.npmjs.com/search?q={q}'],
+        ['pypi','PyPI','https://pypi.org/search/?q={q}']
+      ]},
+      { group:'Regional', items:[
+        ['baidu','Baidu','https://www.baidu.com/s?wd={q}'],
+        ['naver','Naver','https://search.naver.com/search.naver?query={q}'],
+        ['seznam','Seznam','https://search.seznam.cz/?q={q}']
+      ]},
+      { group:'Archives', items:[
+        ['archive','Internet Archive','https://archive.org/search.php?query={q}'],
+        ['wayback','Wayback Machine','https://web.archive.org/web/*/{qRAW}']
+      ]},
+      { group:'.onion (catalogs / indexes)', items:[
+        ['ahmia','Ahmia (clearnet → .onion)','https://ahmia.fi/search/?q={q}'],
+        ['ahmia_onion','Ahmia (.onion)','http://juhanurmihxlp77zqz2z6fep7zsns5nuyc6vhticrwaymzl4csyd.onion/search/?q={q}', true]
+      ]}
+    ];
+
+    const DEFAULT_SELECTED = new Set(['google','ddg','brave','bing','gnews','gimages','brave_images','yt','scholar','books','wiki','so','gh','archive','ahmia','searxng','metager_news','peertube','mastodon']);
+
+    const $ = s => document.querySelector(s);
+    const $$ = s => Array.from(document.querySelectorAll(s));
+    const STORAGE_KEY = 'li_ts_os_selection_v1';
+    const SEARX_STORAGE = 'li_ts_os_searx_base_v1';
+
+    function getSearxBase(){
+      let base = localStorage.getItem(SEARX_STORAGE) || '';
+      base = (base || '').trim();
+      if(!base){ base = 'https://searx.be'; }
+      return base.replace(/\/+$/,'');
+    }
+
+    function buildQuery(raw){
+      let q = raw.trim();
+      const site = $('#site').value.trim();
+      const ft = $('#filetype').value.trim();
+      const excl = $('#exclude').value.trim();
+      const exact = $('#exact')?.checked;
+      if (exact && q) q = '"' + q + '"';
+      if (site) q += (q ? ' ' : '') + (site.startsWith('site:') ? site : 'site:' + site);
+      if (ft)   q += ' filetype:' + ft;
+      if (excl) q += ' ' + excl.split(/\s+/).filter(Boolean).map(w => w.startsWith('-')? w : '-' + w).join(' ');
+      return q;
+    }
+
+    function renderGroups(){
+      const container = $('#groups'); container.innerHTML = '';
+      const searx = getSearxBase();
+      REGISTRY.forEach(bucket => {
+        const det = document.createElement('details');
+        det.className = 'group'; det.open = true;
+        const sum = document.createElement('summary');
+        sum.textContent = bucket.group;
+        det.appendChild(sum);
+
+        bucket.items.forEach(row => {
+          const [id, name, url, onion=false] = row;
+          const displayURL = url.replace('{SEARX}', searx).replace('{q}','{…}').replace('{qRAW}','{…}');
+          const div = document.createElement('label');
+          div.className = 'sys-row';
+          div.dataset.id = id;
+          div.dataset.onion = onion ? '1' : '0';
+          div.innerHTML = `
+            <input type="checkbox" value="${id}">
+            <div>
+              <div><strong>${name}</strong> <span class="sys-note">${onion ? '.onion' : ''}</span></div>
+              <div class="sys-note">${displayURL}</div>
+            </div>
+            <button class="open-one" data-id="${id}">Открыть</button>`;
+          det.appendChild(div);
+        });
+        container.appendChild(det);
+      });
+      $$('input[type="checkbox"][value]').forEach(cb => cb.checked = DEFAULT_SELECTED.has(cb.value));
+
+      // Bind per-row "open one" buttons
+      $$('.open-one').forEach(btn => {
+        btn.onclick = () => {
+          const id = btn.getAttribute('data-id');
+          openOne(id);
+        };
+      });
+    }
+
+    function isOnion(id){
+      for(const g of REGISTRY){
+        for(const it of g.items){
+          if(it[0]===id) return !!it[3];
+        }
+      }
+      return false;
+    }
+
+    function getSelectedIDs(){
+      let ids = $$('input[type="checkbox"][value]:checked').map(cb => cb.value);
+      if ($('#clearnetOnly').checked) ids = ids.filter(id => !isOnion(id));
+      if ($('#onionOnly').checked)    ids = ids.filter(id =>  isOnion(id));
+      return ids;
+    }
+
+    function buildURLs(ids){
+      const raw = $('#q').value.trim();
+      if(!raw){ return []; }
+      const q = buildQuery(raw);
+      const searx = getSearxBase();
+      const urls = [];
+      for(const g of REGISTRY){
+        for(const it of g.items){
+          const [id, name, url] = it;
+          if(ids && !ids.includes(id)) continue;
+          let u = url.replace('{SEARX}', searx).replace('{q}', encodeURIComponent(q)).replace('{qRAW}', encodeURIComponent(raw));
+          if(id==='wayback' && $('#site').value.trim()){
+            const dom = ($('#site').value.trim().startsWith('site:') ? $('#site').value.trim().slice(5) : $('#site').value.trim()).replace(/^https?:\/\//i,'');
+            u = 'https://web.archive.org/web/*/' + encodeURIComponent(dom);
+          }
+          urls.push({id, name, url:u});
+        }
+      }
+      return urls;
+    }
+
+    function openOne(id){
+      const list = buildURLs([id]);
+      if(!$('#q').value.trim()){ $('#q').focus(); return; }
+      if(!list.length) return;
+      const firstHere = $('#firstHere').checked;
+      const u = list[0].url;
+      if(firstHere) location.href = u; else window.open(u, '_blank', 'noopener');
+    }
+
+    function openMass(){
+      const ids = getSelectedIDs();
+      const list = buildURLs(ids);
+      if(!$('#q').value.trim()){ $('#q').focus(); return; }
+      if(!list.length){ alert('Не выбрано ни одной системы'); return; }
+
+      const firstHere = $('#firstHere').checked;
+      if (firstHere){
+        const [first, ...rest] = list.map(o=>o.url);
+        rest.forEach((u,i)=> setTimeout(()=> window.open(u, '_blank', 'noopener'), 200 + i*200));
+        location.href = first;
+        return;
+      }
+      let delay = 0;
+      list.forEach(o => { setTimeout(()=> window.open(o.url, '_blank', 'noopener'), delay); delay += 220; });
+    }
+
+    // Export helpers
+    function toTxt(list){ return list.map(o => o.url).join('\\n'); }
+    function toCsv(list){
+      const esc = s => '\"' + (s||'').replace(/\"/g,'\"\"') + '\"';
+      const rows = [['id','name','url'], ...list.map(o => [o.id, o.name, o.url])];
+      return rows.map(r => r.map(esc).join(',')).join('\\n');
+    }
+    function download(filename, text){
+      const blob = new Blob([text], {type:'text/plain;charset=utf-8'});
+      const a = document.createElement('a');
+      a.href = URL.createObjectURL(blob);
+      a.download = filename;
+      document.body.appendChild(a);
+      a.click();
+      setTimeout(()=>{ URL.revokeObjectURL(a.href); a.remove(); }, 500);
+    }
+    async function copyToClipboard(text){
+      try{ await navigator.clipboard.writeText(text); return true; }
+      catch(e){
+        const ta = document.createElement('textarea');
+        ta.value = text; document.body.appendChild(ta); ta.select();
+        try{ document.execCommand('copy'); }catch(_){}
+        ta.remove();
+        return false;
+      }
+    }
+
+    // Controls & events
+    document.getElementById('go').onclick = openMass;
+    document.getElementById('previewBtn').onclick = () => {
+      const list = buildURLs(getSelectedIDs());
+      const ta = document.getElementById('preview');
+      if(!$('#q').value.trim()){ ta.value=''; flash('Введите запрос'); return; }
+      if(!list.length){ ta.value=''; flash('Нет выбранных систем'); return; }
+      ta.value = list.map(o => o.url).join('\\n');
+      window.scrollTo({top: document.getElementById('links').offsetTop - 12, behavior:'smooth'});
+    };
+    document.addEventListener('keydown', e => {
+      if(e.key==='Enter' && (e.target.id==='q' || e.target.id==='site' || e.target.id==='exclude')){
+        if(e.shiftKey){ $('#clearnetOnly').checked=true; $('#onionOnly').checked=false; }
+        else if(e.ctrlKey || e.metaKey){ $('#clearnetOnly').checked=false; $('#onionOnly').checked=true; }
+        openMass();
+      }
+    });
+
+    function applyFilter(){
+      const f = ($('#filter').value || '').toLowerCase().trim();
+      $$('#groups .sys-row').forEach(row => {
+        const text = row.textContent.toLowerCase();
+        row.style.display = (!f || text.includes(f)) ? '' : 'none';
+      });
+    }
+    function setAll(checked){ $$('#groups input[type="checkbox"][value]').forEach(cb => cb.checked = checked); }
+    function saveSelection(){
+      const ids = $$('input[type="checkbox"][value]').filter(cb => cb.checked).map(cb => cb.value);
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(ids));
+      flash('Выбор сохранён');
+    }
+    function loadSelection(){
+      try{
+        const arr = JSON.parse(localStorage.getItem(STORAGE_KEY) || '[]');
+        if(Array.isArray(arr)){
+          setAll(false);
+          $$('input[type="checkbox"][value]').forEach(cb => cb.checked = arr.includes(cb.value));
+          flash('Выбор загружен');
+        }
+      }catch(_){}
+    }
+    function flash(msg){
+      const s = document.getElementById('status');
+      s.textContent = msg; setTimeout(()=> s.textContent = '', 1500);
+    }
+
+    document.getElementById('filter').oninput = applyFilter;
+    document.getElementById('masterCheck').onchange = e => setAll(e.target.checked);
+    document.getElementById('btnAll').onclick = () => { $('#clearnetOnly').checked=false; $('#onionOnly').checked=false; setAll(true); };
+    document.getElementById('btnClearnet').onclick = () => { $('#clearnetOnly').checked=true; $('#onionOnly').checked=false; setAll(true); $$('input[type=\"checkbox\"][value]').forEach(cb=>{ if(isOnion(cb.value)) cb.checked=false; }); };
+    document.getElementById('btnOnion').onclick = () => { $('#clearnetOnly').checked=false; $('#onionOnly').checked=true; setAll(false); $$('input[type=\"checkbox\"][value]').forEach(cb=>{ if(isOnion(cb.value)) cb.checked=true; }); };
+    document.getElementById('btnSave').onclick = saveSelection;
+    document.getElementById('btnLoad').onclick = loadSelection;
+
+    // SearXNG settings
+    const SEARX_INPUT = document.getElementById('searxBase');
+    SEARX_INPUT.value = localStorage.getItem('li_ts_os_searx_base_v1') || '';
+    document.getElementById('searxSave').onclick = () => {
+      const v = (SEARX_INPUT.value || '').trim();
+      if(v && !/^https?:\/\//i.test(v)){ alert('Добавьте http(s):// к адресу инстанса'); return; }
+      localStorage.setItem('li_ts_os_searx_base_v1', v);
+      flash('SearXNG инстанс сохранён'); renderGroups(); applyFilter();
+    };
+
+    // Init
+    renderGroups(); applyFilter();
+  </script>
+</body>
+</html>

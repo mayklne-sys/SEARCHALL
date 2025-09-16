@@ -1,0 +1,375 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>MetaSearch — единая строка</title>
+  <style>
+    :root{ --bg:#0b0f14; --panel:#121822; --ink:#e6eef8; --muted:#93a3b8; --accent:#6aa3ff; --edge:#1e2a3a; }
+    *{box-sizing:border-box}
+    body{margin:0;font:16px/1.45 system-ui;background:var(--bg);color:var(--ink)}
+    .wrap{max-width:1100px;margin:36px auto;padding:0 16px}
+    .card{background:var(--panel);border:1px solid var(--edge);border-radius:18px;padding:18px;box-shadow:0 10px 30px rgba(0,0,0,.25)}
+    .row{display:flex;gap:10px;align-items:center;flex-wrap:wrap}
+    input[type="search"],input[type="url"],input[type="text"],select{background:#0d1420;color:var(--ink);border:1px solid var(--edge);border-radius:14px;padding:12px 14px;outline:none}
+    input[type="search"]{flex:1}
+    button{background:var(--accent);color:#08101a;border:none;padding:12px 14px;border-radius:12px;font-weight:700;cursor:pointer}
+    button.ghost{background:#0e1622;color:var(--ink);border:1px solid var(--edge)}
+    .pill{display:inline-flex;align-items:center;gap:8px;padding:8px 10px;border:1px solid var(--edge);border-radius:999px;background:#0e1622;color:var(--ink)}
+    .pill input{accent-color:var(--accent)}
+    .muted{color:var(--muted)}
+    .grid{display:grid;gap:12px}
+    .grid.cols-3{grid-template-columns:repeat(3,1fr)}
+    .links{display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:10px}
+    .link a{display:block;background:#0e1622;border:1px solid var(--edge);border-radius:12px;padding:12px;color:var(--ink);text-decoration:none}
+    .link a:hover{border-color:var(--accent)}
+    .engine{display:flex;align-items:center;gap:10px;padding:10px 12px;border:1px solid var(--edge);border-radius:12px;background:#0e1622}
+    .engine code{background:#0b111b;border:1px solid var(--edge);border-radius:8px;padding:2px 6px}
+    .dropzone{border:1px dashed var(--edge); border-radius:14px; padding:14px; background:#0d1420; display:flex; align-items:center; gap:10px}
+    .dropzone.drag{border-color:var(--accent); box-shadow:0 0 0 3px color-mix(in oklab, var(--accent) 30%, transparent)}
+    .dropzone small{color:var(--muted)}
+    @media (max-width:900px){.grid.cols-3{grid-template-columns:1fr}}
+  </style>
+</head>
+<body>
+<div class="wrap">
+  <h1 style="margin:0 0 10px">MetaSearch — единая строка</h1>
+  <p class="muted" style="margin:6px 0 14px">Одна строка — сразу во всех выбранных движках. Поддержка reverse image search: вставь URL картинки или перетащи файл ниже — я загружу на Catbox (или 0x0.st) и подставлю ссылку.</p>
+
+  <div class="card" style="margin-bottom:14px">
+    <div class="row">
+      <input id="q" type="search" placeholder="Что ищем? (или URL изображения)" autocomplete="on" />
+      <button id="go">Искать</button>
+      <button id="copyLinks" class="ghost">Копировать ссылки</button>
+    </div>
+    <div class="row" style="gap:8px;margin-top:10px">
+      <label class="pill"><input id="f_onion" type="checkbox"> только <code>.onion</code></label>
+      <label class="pill"><input id="f_i2p" type="checkbox"> только <code>.i2p</code></label>
+      <label class="pill">alt‑TLD: <input id="f_alt" type="text" placeholder=".bit .eth" style="width:160px"></label>
+      <span class="muted" style="margin-left:auto">Enter — открыть вкладки · Alt+Enter — только сгенерировать ссылки · / — фокус</span>
+    </div>
+    <div class="row" style="margin-top:10px">
+      <div id="dropZone" class="dropzone">
+        <div>📥</div>
+        <div><strong>Перетащи сюда картинку</strong> или нажми для выбора файла.<br><small>Файл загрузится анонимно, URL подставится в строку и включатся reverse‑движки.</small></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="card" style="margin-bottom:14px">
+    <div id="enginePills" class="row"></div>
+    <div class="row" style="margin-top:10px">
+      <button id="openAll">Открыть все вкладки</button>
+      <button id="toggleAll" class="ghost">Выделить/снять все</button>
+      <button id="exportJson" class="ghost">Экспорт .json</button>
+      <label class="pill" for="importJson"><input id="importJson" type="file" accept="application/json" style="display:none">Импорт .json</label>
+      <label class="pill">Пресет:
+        <select id="presetSelect">
+          <option value="" selected>— выбрать —</option>
+          <option value="dark">Dark/Onion</option>
+          <option value="osint">OSINT</option>
+          <option value="dev">Dev</option>
+          <option value="media">Media</option>
+        </select>
+      </label>
+      <button id="applyPreset" class="ghost">Добавить пресет</button>
+    </div>
+  </div>
+
+  <div class="grid cols-3">
+    <div class="card">
+      <div style="font-weight:800;margin-bottom:8px">Добавить свой движок</div>
+      <div class="row">
+        <input id="newName" type="text" placeholder="Название" style="flex:1">
+        <input id="newCode" type="text" placeholder="код" style="width:140px">
+      </div>
+      <div class="row" style="margin-top:8px">
+        <input id="newTpl" type="url" placeholder="https://example.com/search?q={q}" style="flex:1">
+        <button id="addEngine">Добавить</button>
+      </div>
+      <div class="muted" style="margin-top:8px;font-size:13px">Шаблон должен содержать <code>{q}</code>. Пример: <code>https://duckduckgo.com/?q={q}</code></div>
+    </div>
+    <div class="card">
+      <div style="font-weight:800;margin-bottom:8px">Текущие движки</div>
+      <div id="engineList" class="grid" style="gap:8px"></div>
+    </div>
+    <div class="card">
+      <div style="font-weight:800;margin-bottom:8px">Сгенерированные ссылки</div>
+      <div id="links" class="links"></div>
+    </div>
+  </div>
+</div>
+
+<script>
+const LS_KEY='metasearch.engines.v1';
+const DEFAULT_ENGINES=[
+  {name:'Google',code:'google',tpl:'https://www.google.com/search?q={q}'},
+  {name:'Bing',code:'bing',tpl:'https://www.bing.com/search?q={q}'},
+  {name:'DuckDuckGo',code:'ddg',tpl:'https://duckduckgo.com/?q={q}'},
+  {name:'Yandex',code:'yandex',tpl:'https://yandex.com/search/?text={q}'},
+  {name:'Brave',code:'brave',tpl:'https://search.brave.com/search?q={q}'},
+  {name:'Startpage',code:'startpage',tpl:'https://www.startpage.com/sp/search?query={q}'},
+  {name:'Qwant',code:'qwant',tpl:'https://www.qwant.com/?q={q}'},
+  {name:'Wikipedia',code:'wikipedia',tpl:'https://ru.wikipedia.org/w/index.php?search={q}'},
+  {name:'YouTube',code:'youtube',tpl:'https://www.youtube.com/results?search_query={q}'}
+];
+const IMAGE_TEXT_ENGINES=[
+  {name:'Google Images',code:'gimg',tpl:'https://www.google.com/search?tbm=isch&q={q}'},
+  {name:'Bing Images',code:'bimg',tpl:'https://www.bing.com/images/search?q={q}'},
+  {name:'DuckDuckGo Images',code:'ddgimg',tpl:'https://duckduckgo.com/?iax=images&ia=images&q={q}'},
+  {name:'Yandex Images',code:'yimg',tpl:'https://yandex.com/images/search?text={q}'}
+];
+const IMAGE_REVERSE_ENGINES=[
+  {name:'Google Lens (URL)',code:'lens',tpl:'https://lens.google.com/uploadbyurl?url={q}'},
+  {name:'Bing Visual',code:'bingvis',tpl:'https://www.bing.com/images/search?q=imgurl:{q}&view=detailv2&iss=sbi'},
+  {name:'Yandex Reverse',code:'yarev',tpl:'https://yandex.com/images/search?rpt=imageview&url={q}'},
+  {name:'TinEye',code:'tineye',tpl:'https://tineye.com/search?url={q}'},
+  {name:'SauceNAO',code:'saucenao',tpl:'https://saucenao.com/search.php?url={q}'},
+  {name:'IQDB',code:'iqdb',tpl:'https://iqdb.org/?url={q}'},
+  {name:'ascii2d',code:'ascii2d',tpl:'https://ascii2d.net/search/url/{q}'}
+];
+const PRESETS={
+  dark:[
+    {name:'Ahmia (onion index)',code:'ahmia',tpl:'https://ahmia.fi/search/?q={q}'},
+    {name:'DDG .onion (фильтр)',code:'ddg-onion',tpl:'https://duckduckgo.com/?q={q}+site%3A.onion'},
+    {name:'Google .onion (фильтр)',code:'google-onion',tpl:'https://www.google.com/search?q={q}+site%3A.onion'}
+  ],
+  osint:[
+    {name:'SecurityTrails',code:'securitytrails',tpl:'https://securitytrails.com/list/apex_domain/{q}'},
+    {name:'Shodan',code:'shodan',tpl:'https://www.shodan.io/search?query={q}'},
+    {name:'Censys',code:'censys',tpl:'https://search.censys.io/search?resource=hosts&q={q}'},
+    {name:'crt.sh',code:'crtsh',tpl:'https://crt.sh/?q={q}'},
+    {name:'urlscan.io',code:'urlscan',tpl:'https://urlscan.io/search/#domain:{q}'},
+    {name:'PublicWWW',code:'publicwww',tpl:'https://publicwww.com/websites/%22{q}%22/'},
+    {name:'Wayback',code:'https',tpl:'https://web.archive.org/web/*/{q}'}
+  ],
+  dev:[
+    {name:'npm',code:'npm',tpl:'https://www.npmjs.com/search?q={q}'},
+    {name:'PyPI',code:'pypi',tpl:'https://pypi.org/search/?q={q}'},
+    {name:'MDN',code:'mdn',tpl:'https://developer.mozilla.org/ru/search?q={q}'}
+  ],
+  media:[
+    {name:'IMDb',code:'imdb',tpl:'https://www.imdb.com/find/?q={q}'},
+    {name:'TMDB',code:'tmdb',tpl:'https://www.themoviedb.org/search?query={q}'},
+    {name:'SoundCloud',code:'soundcloud',tpl:'https://soundcloud.com/search?q={q}'},
+    {name:'Bandcamp',code:'bandcamp',tpl:'https://bandcamp.com/search?q={q}'}
+  ]
+};
+
+function loadEngines(){ try{const arr=JSON.parse(localStorage.getItem(LS_KEY)); if(Array.isArray(arr)&&arr.length) return arr;}catch(e){} return DEFAULT_ENGINES.concat(IMAGE_TEXT_ENGINES, IMAGE_REVERSE_ENGINES); }
+function saveEngines(list){ localStorage.setItem(LS_KEY, JSON.stringify(list)); }
+
+let engines=loadEngines();
+let selectedCodes=new Set(engines.slice(0,6).map(e=>e.code));
+
+const q=document.getElementById('q');
+const go=document.getElementById('go');
+const copyLinksBtn=document.getElementById('copyLinks');
+const enginePills=document.getElementById('enginePills');
+const engineList=document.getElementById('engineList');
+const openAllBtn=document.getElementById('openAll');
+const toggleAllBtn=document.getElementById('toggleAll');
+const linksBox=document.getElementById('links');
+const exportBtn=document.getElementById('exportJson');
+const importInput=document.getElementById('importJson');
+const presetSelect=document.getElementById('presetSelect');
+const applyPreset=document.getElementById('applyPreset');
+
+const newName=document.getElementById('newName');
+const newCode=document.getElementById('newCode');
+const newTpl=document.getElementById('newTpl');
+const addEngineBtn=document.getElementById('addEngine');
+
+const f_onion=document.getElementById('f_onion');
+const f_i2p=document.getElementById('f_i2p');
+const f_alt=document.getElementById('f_alt');
+
+const dropZone=document.getElementById('dropZone');
+
+function buildPills(){
+  enginePills.innerHTML='';
+  engines.forEach(e=>{
+    const lab=document.createElement('label'); lab.className='pill'; lab.title=e.tpl;
+    const cb=document.createElement('input'); cb.type='checkbox'; cb.checked=selectedCodes.has(e.code);
+    cb.addEventListener('change',()=>{ cb.checked?selectedCodes.add(e.code):selectedCodes.delete(e.code); renderLinks(); });
+    const span=document.createElement('span'); span.textContent=e.name;
+    lab.appendChild(cb); lab.appendChild(span); enginePills.appendChild(lab);
+  });
+}
+
+function buildList(){
+  engineList.innerHTML='';
+  engines.forEach(e=>{
+    const row=document.createElement('div'); row.className='engine';
+    row.innerHTML = `<strong>${e.name}</strong><span class="muted">(${e.code})</span><code>{q}</code>`;
+    const tpl=document.createElement('code'); tpl.textContent=e.tpl; tpl.style.wordBreak='break-all';
+    const del=document.createElement('button'); del.textContent='Удалить'; del.className='ghost'; del.style.marginLeft='auto';
+    del.addEventListener('click',()=>{ engines=engines.filter(x=>x.code!==e.code); selectedCodes.delete(e.code); saveEngines(engines); buildPills(); buildList(); renderLinks(); });
+    row.appendChild(tpl); row.appendChild(del); engineList.appendChild(row);
+  });
+}
+
+function encodeQuery(s){ return encodeURIComponent(s).replace(/%20/g,'+'); }
+function buildUrl(tpl, query){ return tpl.replace('{q}', encodeQuery(query)); }
+
+function applyFilters(qr){
+  let out = qr;
+  const parts = [];
+  if(f_onion.checked) parts.push('site:.onion');
+  if(f_i2p.checked) parts.push('site:.i2p');
+  const alt=(f_alt.value||'').trim();
+  if(alt){
+    const tlds=alt.split(/\s+/).filter(Boolean).map(x=>x.startsWith('.')?x:'.'+x);
+    if(tlds.length){ parts.push(tlds.map(t=>`site:${t}`).join(' OR ')); }
+  }
+  if(parts.length){ out = qr + ' ' + parts.join(' '); }
+  return out.trim();
+}
+
+function renderLinks(){
+  const queryRaw=q.value.trim();
+  linksBox.innerHTML='';
+  if(!queryRaw) return;
+  const query=applyFilters(queryRaw);
+  engines.filter(e=>selectedCodes.has(e.code)).forEach(e=>{
+    const url=buildUrl(e.tpl, query);
+    const d=document.createElement('div'); d.className='link';
+    d.innerHTML=`<a href="${url}" target="_blank" rel="noopener noreferrer">${e.name} — "${query}"</a>`;
+    linksBox.appendChild(d);
+  });
+}
+
+function openAll(){
+  const queryRaw=q.value.trim(); if(!queryRaw){ q.focus(); return; }
+  const query=applyFilters(queryRaw);
+  const selected=engines.filter(e=>selectedCodes.has(e.code));
+  let opened=0; selected.forEach(e=>{ const w=window.open(buildUrl(e.tpl,query),'_blank'); if(w) opened++; });
+  if(!opened) alert('Браузер заблокировал всплывающие окна. Разрешите их или используйте список ссылок ниже.');
+}
+
+// Catbox → 0x0.st anonymous upload
+async function uploadImageAnon(file){
+  // 1) Catbox
+  try{
+    const fd=new FormData();
+    fd.append('reqtype','fileupload');
+    fd.append('fileToUpload',file,file.name||'image');
+    const r=await fetch('https://catbox.moe/user/api.php',{method:'POST',body:fd});
+    const t=await r.text();
+    if(r.ok && /^https?:\/\//.test(t.trim())) return t.trim();
+  }catch(e){}
+  // 2) 0x0.st
+  try{
+    const fd2=new FormData();
+    fd2.append('file',file,file.name||'image');
+    const r2=await fetch('https://0x0.st',{method:'POST',body:fd2});
+    const t2=await r2.text();
+    const url=(t2||'').trim().split(/\s+/)[0];
+    if(r2.ok && /^https?:\/\//.test(url)) return url;
+  }catch(e){}
+  throw new Error('Не удалось загрузить (CORS/сеть). Откройте catbox.moe вручную и вставьте ссылку.');
+}
+
+function selectReverseEngines(){
+  ['lens','bingvis','yarev','tineye','saucenao','iqdb','ascii2d'].forEach(code=>selectedCodes.add(code));
+  buildPills();
+}
+
+function wireDropZone(){
+  const pick = ()=>{ const inp=document.createElement('input'); inp.type='file'; inp.accept='image/*'; inp.onchange=()=>{ if(inp.files&&inp.files[0]) handleFile(inp.files[0]); }; inp.click(); };
+  const over = e=>{ e.preventDefault(); dropZone.classList.add('drag'); };
+  const leave= ()=> dropZone.classList.remove('drag');
+  const drop = e=>{ e.preventDefault(); dropZone.classList.remove('drag'); const f=e.dataTransfer?.files?.[0]; if(f) handleFile(f); };
+
+  dropZone.addEventListener('click', pick);
+  dropZone.addEventListener('dragover', over);
+  ['dragleave','dragend'].forEach(ev=> dropZone.addEventListener(ev, leave));
+  dropZone.addEventListener('drop', drop);
+
+  window.addEventListener('paste', (e)=>{
+    const item = Array.from(e.clipboardData?.items||[]).find(it=> it.type && it.type.startsWith('image/'));
+    if(item){ const f=item.getAsFile(); if(f) handleFile(f); }
+  });
+}
+
+async function handleFile(file){
+  try{
+    dropZone.querySelector('small').textContent = 'Загружаю…';
+    const url = await uploadImageAnon(file);
+    q.value = url; selectReverseEngines(); renderLinks();
+    dropZone.querySelector('small').textContent = 'Готово: ссылка подставлена. Нажмите Enter.';
+  } catch(err){
+    dropZone.querySelector('small').textContent = err.message;
+    const a=document.createElement('a'); a.href='https://catbox.moe/'; a.target='_blank'; a.rel='noopener'; a.textContent='Открыть catbox.moe';
+    dropZone.appendChild(a);
+  }
+}
+
+// events
+go.addEventListener('click',()=>{ renderLinks(); openAll(); });
+openAllBtn.addEventListener('click', openAll);
+toggleAllBtn.addEventListener('click', ()=>{
+  const all = selectedCodes.size === engines.length;
+  if(all) selectedCodes.clear(); else engines.forEach(e=>selectedCodes.add(e.code));
+  buildPills(); renderLinks();
+});
+q.addEventListener('input', renderLinks);
+q.addEventListener('keydown', e=>{
+  if(e.key==='Enter' && !e.altKey){ e.preventDefault(); renderLinks(); openAll(); }
+  else if(e.key==='Enter' && e.altKey){ e.preventDefault(); renderLinks(); }
+});
+window.addEventListener('keydown', e=>{ if(e.key==='/' && document.activeElement!==q){ e.preventDefault(); q.focus(); } });
+
+copyLinksBtn.addEventListener('click', async ()=>{
+  const queryRaw=q.value.trim(); if(!queryRaw) return;
+  const query=applyFilters(queryRaw);
+  const selected=engines.filter(e=>selectedCodes.has(e.code));
+  const lines=selected.map(e=>buildUrl(e.tpl, query)).join('\n');
+  try{ await navigator.clipboard.writeText(lines); copyLinksBtn.textContent='Скопировано!'; setTimeout(()=>copyLinksBtn.textContent='Копировать ссылки',1200); }
+  catch(e){ alert('Не удалось скопировать. Скопируйте вручную из списка ниже.'); }
+});
+
+addEngineBtn.addEventListener('click', ()=>{
+  const name=newName.value.trim();
+  const code=newCode.value.trim().toLowerCase().replace(/\s+/g,'-');
+  const tpl=newTpl.value.trim();
+  if(!name||!code||!tpl||!tpl.includes('{q}')){ alert('Проверьте поля. Шаблон URL обязан содержать {q}.'); return; }
+  if(engines.some(e=>e.code===code)){ alert('Код уже используется.'); return; }
+  engines.push({name,code,tpl}); saveEngines(engines); selectedCodes.add(code);
+  newName.value=''; newCode.value=''; newTpl.value='';
+  buildPills(); buildList(); renderLinks();
+});
+
+exportBtn.addEventListener('click', ()=>{
+  const blob=new Blob([JSON.stringify(engines,null,2)], {type:'application/json'});
+  const a=document.createElement('a'); a.href=URL.createObjectURL(blob); a.download='metasearch-engines.json'; a.click(); URL.revokeObjectURL(a.href);
+});
+
+importInput.addEventListener('change', async (ev)=>{
+  const f=ev.target.files?.[0]; if(!f) return;
+  try{
+    const text=await f.text(); const arr=JSON.parse(text);
+    if(!Array.isArray(arr)) throw new Error('Неверный формат');
+    const ok=arr.every(o=>o && typeof o.name==='string' && typeof o.code==='string' && typeof o.tpl==='string' && o.tpl.includes('{q}'));
+    if(!ok) throw new Error('Элементы должны иметь name, code, tpl с {q}');
+    engines=arr; saveEngines(engines); selectedCodes=new Set(engines.map(e=>e.code));
+    buildPills(); buildList(); renderLinks();
+  }catch(err){ alert('Импорт не удался: '+err.message); }
+  finally{ importInput.value=''; }
+});
+
+applyPreset.addEventListener('click', ()=>{
+  const key=presetSelect.value; if(!key) return;
+  const pack=PRESETS[key]||[]; let added=0;
+  pack.forEach(e=>{ if(!engines.some(x=>x.code===e.code)){ engines.push(e); selectedCodes.add(e.code); added++; }});
+  if(added){ saveEngines(engines); buildPills(); buildList(); renderLinks(); }
+});
+
+// init
+buildPills();
+buildList();
+q.focus();
+wireDropZone();
+</script>
+</body>
+</html>
